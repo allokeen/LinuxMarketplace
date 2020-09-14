@@ -10,9 +10,9 @@
 #include <errno.h>
 
 struct Stock{
-   int pid_seller;      //PID sprzedawcy
-   short int num_signal;      //oczekiwany sygnał
-   int id_stock;        //id towaru
+    int pid_seller;      //PID sprzedawcy
+    short int num_signal;      //oczekiwany sygnał
+    int id_stock;        //id towaru
 };
 
 int manageStockAmount(int argc, char* argv[]);
@@ -21,7 +21,6 @@ char** saveAllLines(char* path, char **allLines);
 char* pickRandomFifo(char **allLines, int num_lines);
 char* getRandomPathToFifo(char* path);
 void openFifoFile(char* path, int stockAmount);
-
 int main(int argc, char* argv[]) {
 //    signal( SIGTERM, SIG_IGchar **allLinesN);			//ignorowanie sygnalow term i usr1 przez kontroler
 //    signal(SIGUSR1, SIG_IGN);
@@ -154,6 +153,7 @@ char* getRandomPathToFifo(char* path)
 }
 void openFifoFile(char* path, int stockAmount)
 {
+    union sigval sv;
     int fd;
     struct stat str_stat;
     //umask(0);
@@ -187,13 +187,14 @@ void openFifoFile(char* path, int stockAmount)
                 printf("[Klient] Nie udalo sie odczytac towaru\n");
             }
             else
-            printf("[Klient] Odebrano paczkę: numbytes: %d,  ID - %d, SIG - %d, PID - %d\n", num_bytes, deliveredStock->id_stock,
-                   deliveredStock->num_signal, deliveredStock->pid_seller);
+            {
+                sv.sival_int = deliveredStock->id_stock;
+                sigqueue(deliveredStock->pid_seller, deliveredStock->num_signal, sv);
+                printf("[Klient] Odebrano paczkę: numbytes: %d,  ID - %d, SIG - %d, PID - %d\n", num_bytes,
+                       deliveredStock->id_stock,
+                       deliveredStock->num_signal, deliveredStock->pid_seller);
+            }
         }
         close(fd);
     }
 }
-
-
-
-
