@@ -14,7 +14,8 @@ struct Stock{
     short int num_signal;      //oczekiwany sygnał
     int id_stock;        //id towaru
 };
-
+char *conf_file;
+int num_stock;
 int manageStockAmount(int argc, char* argv[]);
 int readNumOfNonBlankLines(char* path);
 char** saveAllLines(char* path, char **allLines);
@@ -22,21 +23,23 @@ char* pickRandomFifo(char **allLines, int num_lines);
 char* getRandomPathToFifo(char* path);
 void openFifoFile(char* path, int stockAmount);
 int main(int argc, char* argv[]) {
-//    signal( SIGTERM, SIG_IGchar **allLinesN);			//ignorowanie sygnalow term i usr1 przez kontroler
-//    signal(SIGUSR1, SIG_IGN);
+    printf("\n- - - - - - Wzorzec parametrów programu KLIENT: - - - - - -\n "
+           "- -k<ilosc towarow> <sciezka do pliku konfiguracyjnego>\n "
+           "- <sciezka do pliku konfiguracyjnego> -k<ilosc towarow>\n " "- <sciezka do pliku konfiguracyjnego>\n- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -\n\n\n");
     if(argc<2)
     {
-        perror("Proszę wprowadzić parametry wedlug wzorca: \n "
+        perror("[ZŁA LICZBA PARAMETRÓW]\nProszę wprowadzić parametry wedlug wzorca: \n "
                "- -k<ilosc towarow> <sciezka do pliku konfiguracyjnego>\n "
                "- <sciezka do pliku konfiguracyjnego> -k<ilosc towarow>\n " "- <sciezka do pliku konfiguracyjnego>\n");
+        exit(EXIT_FAILURE);
     }
-    char *conf_file;
+
     if(argv[1][0]=='-')
         conf_file= argv[2];
     else
         conf_file=argv[1];
 
-    int num_stock = manageStockAmount(argc, argv);
+    num_stock = manageStockAmount(argc, argv);
     char* pickedFifo = getRandomPathToFifo(conf_file);
     printf("wybrana sciezka: %s, towar: %d\n", pickedFifo, num_stock);
     openFifoFile(pickedFifo, num_stock);
@@ -50,10 +53,9 @@ int manageStockAmount(int argc, char* argv[])
     {
         switch(opt)
             case 'k':
-                if(optarg)
+            {
                     return (int)strtol(optarg, (char **)NULL, 10);
-                else
-                    return 1;
+            }
     }
     return 1;
 }
@@ -65,6 +67,9 @@ int readNumOfNonBlankLines(char* path)
     int fd = open(path, O_RDONLY | O_NONBLOCK);
     if(fd<0) {
         perror("[klient]Nie udało sie otworzyć pliku konfiguracyjnego!");
+        perror("Proszę wprowadzić parametry wedlug wzorca: \n "
+               "- -k<ilosc towarow> <sciezka do pliku konfiguracyjnego>\n "
+               "- <sciezka do pliku konfiguracyjnego> -k<ilosc towarow>\n " "- <sciezka do pliku konfiguracyjnego>\n");
         exit(EXIT_FAILURE);
     }
     int first_letter=0;
@@ -174,6 +179,7 @@ void openFifoFile(char* path, int stockAmount)
         for (int i = 0; i < stockAmount; i++)
         {
             struct Stock *deliveredStock = (struct Stock *) malloc(sizeof(struct Stock));
+            struct Stock *deliveredAd = (struct Stock *) malloc(sizeof(struct Stock));
             int num_bytes = 0;
             while( num_bytes==0 )
             {
@@ -188,11 +194,29 @@ void openFifoFile(char* path, int stockAmount)
             }
             else
             {
-                sv.sival_int = deliveredStock->id_stock;
-                sigqueue(deliveredStock->pid_seller, deliveredStock->num_signal, sv);
-                printf("[Klient] Odebrano paczkę: numbytes: %d,  ID - %d, SIG - %d, PID - %d\n", num_bytes,
-                       deliveredStock->id_stock,
-                       deliveredStock->num_signal, deliveredStock->pid_seller);
+                int numBytesFlyer;
+                while(!numBytesFlyer)
+                {
+                    numBytesFlyer = read(fd, deliveredAd, sizeof(*deliveredAd));
+                }
+                if(numBytesFlyer > 0 && deliveredAd->id_stock%2==1)
+                {
+                    printf("[Klient] Otrzymano ulotkę od: %d\n", deliveredAd->pid_seller);
+                    sv.sival_int = deliveredAd->id_stock;
+                    sigqueue(deliveredAd->pid_seller,deliveredAd->num_signal, sv);
+                    if(deliveredStock->id_stock == deliveredAd->id_stock)
+                    {
+                        printf("ZMIANA FIFO\n");
+                        close(fd);
+                        openFifoFile(getRandomPathToFifo(conf_file), num_stock);
+                    }
+                    i--;
+                }
+                    sv.sival_int = deliveredStock->id_stock;
+                    sigqueue(deliveredStock->pid_seller, deliveredStock->num_signal, sv);
+                    printf("[Klient] Odebrano paczkę: numbytes: %d,  ID - %d, SIG - %d, PID - %d\n", num_bytes,
+                           deliveredStock->id_stock,
+                           deliveredStock->num_signal, deliveredStock->pid_seller);
             }
         }
         close(fd);
