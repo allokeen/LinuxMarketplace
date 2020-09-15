@@ -229,9 +229,9 @@ void writeFifoFiles(char** allLines, int num_lines, int num_signal, int flyers_n
     new_flyer.id_flyer = tablica[index];
 
     struct timespec  ts, ts1;
-    ts1.tv_nsec = 400000000;
+    ts1.tv_nsec = 500000000;
     ts1.tv_sec = 0;
-    ts.tv_nsec = 400000000;
+    ts.tv_nsec = 500000000;
     ts.tv_sec = 0;
 
     statistics = (int*)calloc(flyers_num,sizeof(int));
@@ -269,7 +269,7 @@ void writeFifoFiles(char** allLines, int num_lines, int num_signal, int flyers_n
                     int index = rand()%flyers_num;
                     new_flyer.id_flyer = tablica[index];
                 }
-                sleep(2);
+                nanosleep(&ts1, &ts);
             }
         }
     }

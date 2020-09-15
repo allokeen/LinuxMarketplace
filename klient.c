@@ -159,6 +159,7 @@ char* getRandomPathToFifo(char* path)
 void openFifoFile(char* path, int stockAmount)
 {
     union sigval sv;
+    union sigval sv1;
     int fd;
     struct stat str_stat;
     //umask(0);
@@ -188,35 +189,38 @@ void openFifoFile(char* path, int stockAmount)
 
             if (num_bytes  == -1)
             {
-                perror("[Klient] Nie udalo sie odczytac towaru");
+                //perror("[Klient] Nie udalo sie odczytac towaru");
                 exit(EXIT_FAILURE);
-                printf("[Klient] Nie udalo sie odczytac towaru\n");
             }
             else
             {
-                int numBytesFlyer;
-                while(!numBytesFlyer)
+                if(deliveredStock->id_stock%2==1)
                 {
-                    numBytesFlyer = read(fd, deliveredAd, sizeof(*deliveredAd));
+                    printf("ZMIANA FIFO\n");
+                    printf("[Klient] Otrzymano ulotkę od PID -%d\n", deliveredStock->pid_seller);
+                    close(fd);
+                    openFifoFile(getRandomPathToFifo(conf_file), num_stock);
                 }
-                if(numBytesFlyer > 0 && deliveredAd->id_stock%2==1)
-                {
-                    printf("[Klient] Otrzymano ulotkę od: %d\n", deliveredAd->pid_seller);
-                    sv.sival_int = deliveredAd->id_stock;
-                    sigqueue(deliveredAd->pid_seller,deliveredAd->num_signal, sv);
-                    if(deliveredStock->id_stock == deliveredAd->id_stock)
+                else if(deliveredStock->id_stock%2==0) {
+                    int numBytesFlyer;
+                    while(numBytesFlyer && deliveredAd->id_stock%2==1)
                     {
-                        printf("ZMIANA FIFO\n");
-                        close(fd);
-                        openFifoFile(getRandomPathToFifo(conf_file), num_stock);
+                        numBytesFlyer = read(fd, deliveredAd, sizeof(*deliveredAd));
+                        if(rand()%2==0)
+                        {
+                            printf("[Klient] Otrzymano ulotkę od %d\n", deliveredAd->pid_seller);
+                            sv.sival_int = deliveredAd->id_stock;
+                            sigqueue(deliveredAd->pid_seller, deliveredAd->num_signal, sv1);
+                        }
+                        if(numBytesFlyer<0)
+                            break;
                     }
-                    i--;
-                }
                     sv.sival_int = deliveredStock->id_stock;
                     sigqueue(deliveredStock->pid_seller, deliveredStock->num_signal, sv);
                     printf("[Klient] Odebrano paczkę: numbytes: %d,  ID - %d, SIG - %d, PID - %d\n", num_bytes,
                            deliveredStock->id_stock,
                            deliveredStock->num_signal, deliveredStock->pid_seller);
+                }
             }
         }
         close(fd);

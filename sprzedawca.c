@@ -206,9 +206,9 @@ void writeFifoFiles(char** allLines, int num_lines, int num_signal)
 {
     struct stock new_stock;
     struct timespec  ts, ts1;
-    ts1.tv_nsec = 400000000;
+    ts1.tv_nsec = 500000000;
     ts1.tv_sec = 0;
-    ts.tv_nsec = 400000000;
+    ts.tv_nsec = 500000000;
     ts.tv_sec = 0;
     new_stock.pid_seller = getpid();
     new_stock.num_signal = num_signal;
@@ -231,6 +231,7 @@ void writeFifoFiles(char** allLines, int num_lines, int num_signal)
                         allFIFOsInfo[i].czy_wyslano_raz = 0;
                         allFIFOsInfo[i].czy_zaplacono = 0;
                         if (toDeleteFile()) {
+                            //printf("Usuwam PIPE: %s", allLines[i]);
                             unlink(allLines[i]);
                         }
                     }
@@ -264,7 +265,6 @@ void writeFifoFiles(char** allLines, int num_lines, int num_signal)
                         new_stock.id_stock = id_stock;
                         stockList_size++;
                         nanosleep(&ts1, &ts);
-                        //kill(0,SIGUSR1);
                     }
                 }
             }
